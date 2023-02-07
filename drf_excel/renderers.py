@@ -54,12 +54,15 @@ class XLSXRenderer(BaseRenderer):
         """
         Render `data` into XLSX workbook, returning a workbook.
         """
+        # STEP 1: CHECK FOR ERROR
         if not self._check_validation_data(data):
             return json.dumps(data)
 
+        # STEP 2: IF NO DATA RETURN EMPTY
         if data is None:
             return bytes()
 
+        # STEP 3: CREATE WORKBOOK FOR EXCEL AND SET STYLING
         wb = Workbook()
         self.ws = wb.active
 
@@ -93,6 +96,7 @@ class XLSXRenderer(BaseRenderer):
         # Make column headers
         column_titles = column_header.get("titles", [])
 
+        # STEP 4: EXCEL SHEET DATA WORK STARTED
         # If we have results, then flatten field
         # names
         if len(results):
@@ -139,6 +143,7 @@ class XLSXRenderer(BaseRenderer):
             # 'custom_func', allowing for formatting logic
             self.custom_mappings = getattr(drf_view, "xlsx_custom_mappings", dict())
 
+            # STEP 5: EXCEL SHEET COLUMN HEADER DATA WORK STARTED
             self.fields_dict = self._serializer_fields(drf_view.get_serializer())
 
             xlsx_header_dict = self._flatten_serializer_keys(
@@ -192,6 +197,7 @@ class XLSXRenderer(BaseRenderer):
                 col_letter = get_column_letter(ws_column)
                 self.ws.column_dimensions[col_letter].width = column_width
 
+        # STEP 6: EXCEL SHEET ROWS DATA WORK STARTED
         # Make body
         body = get_attribute(drf_view, "body", {})
         self.body_style = (
@@ -232,14 +238,14 @@ class XLSXRenderer(BaseRenderer):
         return _fields_dict
 
     def _flatten_serializer_keys(
-        self,
-        serializer,
-        parent_key="",
-        parent_label="",
-        key_sep=".",
-        list_sep=", ",
-        label_sep=" > ",
-        use_labels=False,
+            self,
+            serializer,
+            parent_key="",
+            parent_label="",
+            key_sep=".",
+            list_sep=", ",
+            label_sep=" > ",
+            use_labels=False,
     ):
         """
         Iterate through serializer fields recursively when field is a nested serializer.
@@ -250,7 +256,7 @@ class XLSXRenderer(BaseRenderer):
                 if parent_label:
                     return f"{parent_label}{label_sep}{v.label}"
                 else:
-                    return str(v.label)
+                    return f"{str(v.label)}*" if v.required else v.label
             else:
                 return False
 
@@ -291,7 +297,7 @@ class XLSXRenderer(BaseRenderer):
                 if use_labels and getattr(v, "label", None):
                     _header_dict[new_key] = _get_label(parent_label, label_sep, v)
                 else:
-                    _header_dict[new_key] = new_key
+                    _header_dict[new_key] = f"{new_key}*" if v.required else new_key
 
         return _header_dict
 
@@ -322,8 +328,8 @@ class XLSXRenderer(BaseRenderer):
         if "row_color" in row:
             last_letter = get_column_letter(column_count)
             cell_range = self.ws[
-                f"A{row_count}" : f"{last_letter}{row_count}"
-            ]
+                         f"A{row_count}": f"{last_letter}{row_count}"
+                         ]
             fill = PatternFill(fill_type="solid", start_color=row["row_color"])
             for r in cell_range:
                 for c in r:
@@ -343,27 +349,27 @@ class XLSXRenderer(BaseRenderer):
             "style": self.body_style,
             # Basically using formatter of custom col as a custom mapping
             "mapping": self.custom_cols.get(key, {}).get("formatter")
-            or self.custom_mappings.get(key),
+                       or self.custom_mappings.get(key),
             "cell_style": cell_style,
         }
         if isinstance(field, BooleanField):
             return XLSXBooleanField(boolean_display=self.boolean_display, **kwargs)
         elif (
-            isinstance(field, IntegerField)
-            or isinstance(field, FloatField)
-            or isinstance(field, DecimalField)
+                isinstance(field, IntegerField)
+                or isinstance(field, FloatField)
+                or isinstance(field, DecimalField)
         ):
             return XLSXNumberField(**kwargs)
         elif (
-            isinstance(field, DateTimeField)
-            or isinstance(field, DateField)
-            or isinstance(field, TimeField)
+                isinstance(field, DateTimeField)
+                or isinstance(field, DateField)
+                or isinstance(field, TimeField)
         ):
             return XLSXDateField(**kwargs)
         elif (
-            isinstance(field, ListField)
-            or isinstance(value, Iterable)
-            and not isinstance(value, str)
+                isinstance(field, ListField)
+                or isinstance(value, Iterable)
+                and not isinstance(value, str)
         ):
             return XLSXListField(list_sep=self.list_sep, **kwargs)
         return XLSXField(**kwargs)
